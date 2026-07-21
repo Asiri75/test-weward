@@ -1,3 +1,4 @@
+import { test, expect } from '@jest/globals';
 import { fixToHexes, diffNewHexes } from '../src/core/explorationEngine';
 
 const fix = { lat: 48.8566, lng: 2.3522, accuracy: 10, speed: 1, ts: 0 };

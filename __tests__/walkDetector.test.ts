@@ -1,3 +1,4 @@
+import { test, expect } from '@jest/globals';
 import { createWalkDetector } from '../src/core/walkDetector';
 import { CONFIG } from '../src/config';
 

@@ -19,5 +19,6 @@ export function buildFog(
   const explored = multiPolygon(loops as number[][][][]);
 
   // turf v7: difference takes a FeatureCollection, computes first minus rest.
-  return difference(featureCollection([viewport, explored]));
+  const fc = featureCollection<Polygon | MultiPolygon>([viewport, explored]);
+  return difference(fc);
 }

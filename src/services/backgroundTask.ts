@@ -5,7 +5,7 @@ import { CONFIG } from '../config';
 
 export const TASK_NAME = 'fog-bg-location';
 
-TaskManager.defineTask(TASK_NAME, ({ data, error }) => {
+TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
   if (error || !data) return;
   const { locations } = data as { locations: Location.LocationObject[] };
   const ingest = useExploration.getState().ingestFix;

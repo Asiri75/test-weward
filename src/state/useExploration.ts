@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 import { latLngToCell, gridDisk } from 'h3-js';
 import { HexId, LocationFix } from '../types';
 import { CONFIG } from '../config';
@@ -8,7 +8,7 @@ import { fixToHexes, diffNewHexes } from '../core/explorationEngine';
 import { createExplorationStore } from '../services/explorationStore';
 import { createMockSyncService } from '../services/syncService';
 
-const storage = new MMKV();
+const storage = createMMKV();
 const store = createExplorationStore(storage);
 const detector = createWalkDetector(CONFIG);
 
