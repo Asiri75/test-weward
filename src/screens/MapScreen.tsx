@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import * as Location from 'expo-location';
 import Mapbox from '@rnmapbox/maps';
 import { useExploration } from '../state/useExploration';
 import { FogLayer } from '../components/FogLayer';
@@ -17,7 +18,7 @@ const HOME: [number, number] = [2.3522, 48.8566];
 const CARD = require('../../assets/weward-card.jpg');
 
 export default function MapScreen() {
-  const { exploredHexes, ingestFix, hydrate, syncNow, reset } = useExploration();
+  const { exploredHexes, ingestFix, hydrate, syncNow, reset, revealAround } = useExploration();
   const [bbox, setBbox] = useState<[number, number, number, number]>([2.3, 48.84, 2.4, 48.87]);
   const [degraded, setDegraded] = useState(false);
   const [simPos, setSimPos] = useState<[number, number] | null>(null);
@@ -28,7 +29,22 @@ export default function MapScreen() {
   useEffect(() => {
     hydrate();
     void syncNow();
-    getPermissionState().then((s) => setDegraded(s === 'whenInUse'));
+    getPermissionState().then(async (s) => {
+      setDegraded(s === 'whenInUse');
+      // Reveal the neighborhood around the start position so you never begin in
+      // total darkness at your own location. Fall back to HOME if no fix.
+      let coord: [number, number] = HOME;
+      if (s !== 'denied') {
+        try {
+          const p = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          coord = [p.coords.longitude, p.coords.latitude];
+        } catch {
+          // keep HOME
+        }
+      }
+      revealAround(coord[1], coord[0]);
+      cameraRef.current?.setCamera({ centerCoordinate: coord, zoomLevel: 15, animationDuration: 0 });
+    });
     return () => stopRef.current?.();
   }, []);
 

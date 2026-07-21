@@ -22,6 +22,7 @@ interface ExplorationState {
   ingestFix: (fix: LocationFix) => void;
   syncNow: () => Promise<void>;
   reset: () => void;
+  revealAround: (lat: number, lng: number) => void;
 }
 
 export const useExploration = create<ExplorationState>((set, get) => ({
@@ -47,5 +48,12 @@ export const useExploration = create<ExplorationState>((set, get) => ({
   reset: () => {
     store.clear();
     set({ exploredHexes: [] });
+  },
+  // Reveal a small neighborhood around a point (used at startup so you don't
+  // begin in total darkness at your own location).
+  revealAround: (lat, lng) => {
+    const patch = fixToHexes({ lat, lng, accuracy: 0, speed: null, ts: 0 }, CONFIG.h3Resolution, 2);
+    store.add(patch);
+    set({ exploredHexes: store.getAll() });
   },
 }));
