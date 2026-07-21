@@ -73,6 +73,10 @@ MAPBOX_DOWNLOAD_TOKEN=sk_ton_token_de_telechargement
 npx expo run:ios     # ou npx expo run:android
 ```
 
+### Note toolchain (SDK 57 sur Xcode 26.0.1)
+
+On est sur la toute dernière stack : **Expo SDK 57, React Native 0.86, React 19.2** (New Architecture bridgeless). `expo-modules-jsi` y utilise `weak let` (Swift 6.2, SE-0481), que **Xcode 26.0.1 ne compile pas encore** (il faut Xcode 26.1+). En attendant, un patch minimal (dossier `patches/`, appliqué automatiquement par `patch-package` en `postinstall`) convertit `weak let` en `weak var` dans `expo-modules-jsi` et `expo-modules-core`. Sémantiquement identique (référence weak, posée une fois). Sur Xcode 26.1+, ce patch devient inutile.
+
 ---
 
 ## Démo
