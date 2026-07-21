@@ -57,10 +57,17 @@ Expo (dev build), TypeScript, @rnmapbox/maps, expo-location, expo-task-manager, 
 npm install
 ```
 
-1. Crée un compte Mapbox (gratuit) et récupère un token public + un token de téléchargement.
-2. Mets le token de téléchargement dans `app.json` (plugin `@rnmapbox/maps`).
-3. Crée un `.env` : `EXPO_PUBLIC_MAPBOX_TOKEN=pk...`
-4. Dev build (Mapbox natif, pas Expo Go) :
+1. Compte Mapbox (gratuit). Récupère ton token public (`pk...`) et crée un token de téléchargement avec le scope `DOWNLOADS:READ` (`sk...`).
+2. Crée un fichier `.env.local` (ignoré par git, aucun secret n'est versionné) :
+
+```
+EXPO_PUBLIC_MAPBOX_TOKEN=pk_ton_token_public
+MAPBOX_DOWNLOAD_TOKEN=sk_ton_token_de_telechargement
+```
+
+`app.config.js` injecte le token de téléchargement dans le plugin Mapbox au build.
+
+3. Dev build (Mapbox natif, pas Expo Go) :
 
 ```bash
 npx expo run:ios     # ou npx expo run:android
