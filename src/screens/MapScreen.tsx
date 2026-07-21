@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import * as Location from 'expo-location';
+import { latLngToCell } from 'h3-js';
 import Mapbox from '@rnmapbox/maps';
 import { useExploration } from '../state/useExploration';
 import { FogLayer } from '../components/FogLayer';
@@ -11,6 +12,7 @@ import { POIS } from '../services/pois';
 import { requestAlways, getPermissionState } from '../services/permissions';
 import { registerBackgroundLocation } from '../services/backgroundTask';
 import { LocationFix } from '../types';
+import { CONFIG } from '../config';
 import { COLORS } from '../theme';
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '');
@@ -36,6 +38,9 @@ export default function MapScreen() {
   const cameraRef = useRef<any>(null);
   const askedAlways = useRef(false);
   const lastBboxAt = useRef(0);
+
+  // A card is collectable only once its hexagon has been revealed (out of the fog).
+  const exploredSet = useMemo(() => new Set(exploredHexes), [exploredHexes]);
 
   useEffect(() => {
     hydrate();
@@ -117,13 +122,20 @@ export default function MapScreen() {
         <Mapbox.UserLocation visible={!simPos} />
         <FogLayer hexes={exploredHexes} bbox={bbox} />
 
-        {POIS.map((p) => (
-          <Mapbox.MarkerView key={p.id} id={`poi-${p.id}`} coordinate={[p.lng, p.lat]} allowOverlap>
-            <Pressable onPress={() => setSelectedPoi(p.id)} hitSlop={10}>
-              <Image source={CARD} style={styles.card} />
-            </Pressable>
-          </Mapbox.MarkerView>
-        ))}
+        {POIS.map((p) => {
+          const revealed = exploredSet.has(latLngToCell(p.lat, p.lng, CONFIG.h3Resolution));
+          return (
+            <Mapbox.MarkerView key={p.id} id={`poi-${p.id}`} coordinate={[p.lng, p.lat]} allowOverlap>
+              <Pressable
+                onPress={revealed ? () => setSelectedPoi(p.id) : undefined}
+                disabled={!revealed}
+                hitSlop={10}
+              >
+                <Image source={CARD} style={[styles.card, !revealed && styles.cardLocked]} />
+              </Pressable>
+            </Mapbox.MarkerView>
+          );
+        })}
 
         {simPos && (
           <Mapbox.MarkerView id="simpos" coordinate={simPos}>
@@ -155,7 +167,7 @@ export default function MapScreen() {
         <Pressable style={styles.btn} onPress={() => run(createSimulatedSource(WALK_ROUTE))}>
           <Text style={styles.btnT}>Simuler marche</Text>
         </Pressable>
-        <Pressable style={styles.btn} onPress={() => run(createSimulatedSource(DRIVE_ROUTE))}>
+        <Pressable style={styles.btn} onPress={() => run(createSimulatedSource(DRIVE_ROUTE, 1200))}>
           <Text style={styles.btnT}>Simuler voiture</Text>
         </Pressable>
       </View>
@@ -167,6 +179,7 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   card: { width: 30, height: 50, borderRadius: 4 },
+  cardLocked: { opacity: 0.28 }, // in the fog: dimmed and not collectable
   simOuter: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(30,136,229,0.3)', alignItems: 'center', justifyContent: 'center' },
   simInner: { width: 14, height: 14, borderRadius: 7, backgroundColor: COLORS.user, borderWidth: 2, borderColor: 'white' },
   banner: { position: 'absolute', top: 54, alignSelf: 'center', backgroundColor: COLORS.navy, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
