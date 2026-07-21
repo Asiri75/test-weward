@@ -18,6 +18,14 @@ Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '');
 const HOME: [number, number] = [2.3522, 48.8566];
 const CARD = require('../../assets/weward-card.jpg');
 
+// Pad the viewport bbox so the fog stays covered at the edges between updates.
+function padBbox(b: [number, number, number, number]): [number, number, number, number] {
+  const [w, s, e, n] = b;
+  const dx = (e - w) * 0.3;
+  const dy = (n - s) * 0.3;
+  return [w - dx, s - dy, e + dx, n + dy];
+}
+
 export default function MapScreen() {
   const { exploredHexes, ingestFix, hydrate, syncNow, reset, revealAround } = useExploration();
   const [bbox, setBbox] = useState<[number, number, number, number]>([2.3, 48.84, 2.4, 48.87]);
@@ -27,6 +35,7 @@ export default function MapScreen() {
   const stopRef = useRef<null | (() => void)>(null);
   const cameraRef = useRef<any>(null);
   const askedAlways = useRef(false);
+  const lastBboxAt = useRef(0);
 
   useEffect(() => {
     hydrate();
@@ -94,8 +103,14 @@ export default function MapScreen() {
         style={{ flex: 1 }}
         styleURL={Mapbox.StyleURL.Light}
         onCameraChanged={(state: any) => {
+          // Throttle: recomputing the fog geometry on every camera frame is wasteful.
+          const now = Date.now();
+          if (now - lastBboxAt.current < 300) return;
           const b = state?.properties?.bounds;
-          if (b?.ne && b?.sw) setBbox([b.sw[0], b.sw[1], b.ne[0], b.ne[1]]);
+          if (b?.ne && b?.sw) {
+            lastBboxAt.current = now;
+            setBbox(padBbox([b.sw[0], b.sw[1], b.ne[0], b.ne[1]]));
+          }
         }}
       >
         <Mapbox.Camera ref={cameraRef} defaultSettings={{ centerCoordinate: HOME, zoomLevel: 15 }} />
