@@ -57,7 +57,7 @@ export default function MapScreen() {
           if (b?.ne && b?.sw) setBbox([b.sw[0], b.sw[1], b.ne[0], b.ne[1]]);
         }}
       >
-        <Mapbox.Camera zoomLevel={15} centerCoordinate={HOME} followUserLocation />
+        <Mapbox.Camera defaultSettings={{ centerCoordinate: HOME, zoomLevel: 15 }} />
         <Mapbox.UserLocation visible />
         <FogLayer hexes={exploredHexes} bbox={bbox} />
         {POIS.map((p) => (

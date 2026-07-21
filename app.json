@@ -24,7 +24,16 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@rnmapbox/maps"
+      "@rnmapbox/maps",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Affiche ta position et révèle la carte quand tu marches.",
+          "locationAlwaysAndWhenInUsePermission": "Révèle ta carte quand tu marches, même app fermée.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ]
   }
 }

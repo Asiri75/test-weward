@@ -6,9 +6,15 @@ export async function requestWhenInUse(): Promise<boolean> {
 }
 
 // iOS shows "Always" only as a second, separate prompt after When-In-Use.
+// Wrapped: if background location isn't available on the platform/manifest,
+// degrade gracefully instead of throwing.
 export async function requestAlways(): Promise<boolean> {
-  const { status } = await Location.requestBackgroundPermissionsAsync();
-  return status === 'granted';
+  try {
+    const { status } = await Location.requestBackgroundPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
 }
 
 export type PermissionState = 'always' | 'whenInUse' | 'denied';
@@ -16,6 +22,10 @@ export type PermissionState = 'always' | 'whenInUse' | 'denied';
 export async function getPermissionState(): Promise<PermissionState> {
   const fg = await Location.getForegroundPermissionsAsync();
   if (fg.status !== 'granted') return 'denied';
-  const bg = await Location.getBackgroundPermissionsAsync();
-  return bg.status === 'granted' ? 'always' : 'whenInUse';
+  try {
+    const bg = await Location.getBackgroundPermissionsAsync();
+    return bg.status === 'granted' ? 'always' : 'whenInUse';
+  } catch {
+    return 'whenInUse'; // background unavailable -> degraded (foreground-only) mode
+  }
 }
