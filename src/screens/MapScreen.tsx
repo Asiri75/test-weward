@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import Mapbox from '@rnmapbox/maps';
 import { useExploration } from '../state/useExploration';
 import { FogLayer } from '../components/FogLayer';
+import { CardReveal } from '../components/CardReveal';
 import { DeviceLocationSource, createSimulatedSource, LocationSource } from '../services/locationSource';
 import { WALK_ROUTE, DRIVE_ROUTE } from '../services/routes';
 import { POIS } from '../services/pois';
@@ -22,6 +23,7 @@ export default function MapScreen() {
   const [bbox, setBbox] = useState<[number, number, number, number]>([2.3, 48.84, 2.4, 48.87]);
   const [degraded, setDegraded] = useState(false);
   const [simPos, setSimPos] = useState<[number, number] | null>(null);
+  const [selectedPoi, setSelectedPoi] = useState<string | null>(null);
   const stopRef = useRef<null | (() => void)>(null);
   const cameraRef = useRef<any>(null);
   const askedAlways = useRef(false);
@@ -101,8 +103,10 @@ export default function MapScreen() {
         <FogLayer hexes={exploredHexes} bbox={bbox} />
 
         {POIS.map((p) => (
-          <Mapbox.MarkerView key={p.id} id={`poi-${p.id}`} coordinate={[p.lng, p.lat]}>
-            <Image source={CARD} style={styles.card} />
+          <Mapbox.MarkerView key={p.id} id={`poi-${p.id}`} coordinate={[p.lng, p.lat]} allowOverlap>
+            <Pressable onPress={() => setSelectedPoi(p.id)} hitSlop={10}>
+              <Image source={CARD} style={styles.card} />
+            </Pressable>
           </Mapbox.MarkerView>
         ))}
 
@@ -140,6 +144,8 @@ export default function MapScreen() {
           <Text style={styles.btnT}>Simuler voiture</Text>
         </Pressable>
       </View>
+
+      {selectedPoi && <CardReveal onClose={() => setSelectedPoi(null)} />}
     </View>
   );
 }
