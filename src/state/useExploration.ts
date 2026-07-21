@@ -21,6 +21,7 @@ interface ExplorationState {
   hydrate: () => void;
   ingestFix: (fix: LocationFix) => void;
   syncNow: () => Promise<void>;
+  reset: () => void;
 }
 
 export const useExploration = create<ExplorationState>((set, get) => ({
@@ -42,5 +43,9 @@ export const useExploration = create<ExplorationState>((set, get) => ({
     const merged = await sync.pullMerged();
     store.add(merged);
     set({ exploredHexes: store.getAll() });
+  },
+  reset: () => {
+    store.clear();
+    set({ exploredHexes: [] });
   },
 }));

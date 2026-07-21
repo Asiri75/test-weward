@@ -24,6 +24,10 @@ export function createExplorationStore(storage: KV) {
       hexes.forEach((h) => set.add(h));
       storage.set(KEY, JSON.stringify([...set]));
     },
+    clear() {
+      set = new Set<HexId>();
+      storage.set(KEY, JSON.stringify([]));
+    },
     getAll: (): HexId[] => [...set],
   };
 }

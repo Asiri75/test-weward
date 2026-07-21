@@ -16,7 +16,7 @@ Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '');
 const HOME: [number, number] = [2.3522, 48.8566];
 
 export default function MapScreen() {
-  const { exploredHexes, ingestFix, hydrate, syncNow } = useExploration();
+  const { exploredHexes, ingestFix, hydrate, syncNow, reset } = useExploration();
   const [bbox, setBbox] = useState<[number, number, number, number]>([2.3, 48.84, 2.4, 48.87]);
   const [degraded, setDegraded] = useState(false);
   const stopRef = useRef<null | (() => void)>(null);
@@ -45,6 +45,12 @@ export default function MapScreen() {
   const run = async (src: LocationSource) => {
     stopRef.current?.();
     stopRef.current = await src.start(onFix);
+  };
+
+  const doReset = () => {
+    stopRef.current?.(); // stop any running simulation
+    stopRef.current = null;
+    reset();
   };
 
   return (
@@ -77,6 +83,10 @@ export default function MapScreen() {
         <Text style={styles.hudT}>{exploredHexes.length} hexagones explorés</Text>
       </View>
 
+      <Pressable style={styles.reset} onPress={doReset}>
+        <Text style={styles.resetT}>Réinitialiser</Text>
+      </Pressable>
+
       <View style={styles.controls}>
         <Pressable style={styles.btn} onPress={() => run(DeviceLocationSource)}>
           <Text style={styles.btnT}>Réel</Text>
@@ -98,6 +108,8 @@ const styles = StyleSheet.create({
   bannerT: { color: 'white', fontSize: 12 },
   hud: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: COLORS.emerald, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   hudT: { color: 'white', fontWeight: '700' },
+  reset: { position: 'absolute', top: 150, right: 14, backgroundColor: 'rgba(18,26,46,0.9)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  resetT: { color: 'white', fontWeight: '600', fontSize: 12 },
   controls: { position: 'absolute', bottom: 30, flexDirection: 'row', alignSelf: 'center', gap: 8 },
   btn: { backgroundColor: COLORS.navy, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
   btnT: { color: 'white', fontWeight: '600' },
