@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { useExploration } from '../state/useExploration';
 import { FogLayer } from '../components/FogLayer';
@@ -14,12 +14,15 @@ import { COLORS } from '../theme';
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '');
 
 const HOME: [number, number] = [2.3522, 48.8566];
+const CARD = require('../../assets/weward-card.jpg');
 
 export default function MapScreen() {
   const { exploredHexes, ingestFix, hydrate, syncNow, reset } = useExploration();
   const [bbox, setBbox] = useState<[number, number, number, number]>([2.3, 48.84, 2.4, 48.87]);
   const [degraded, setDegraded] = useState(false);
+  const [simPos, setSimPos] = useState<[number, number] | null>(null);
   const stopRef = useRef<null | (() => void)>(null);
+  const cameraRef = useRef<any>(null);
   const askedAlways = useRef(false);
 
   useEffect(() => {
@@ -30,6 +33,14 @@ export default function MapScreen() {
   }, []);
 
   const onFix = async (fix: LocationFix) => {
+    // Move the visible marker + follow with the camera so the walk is visible.
+    setSimPos([fix.lng, fix.lat]);
+    cameraRef.current?.setCamera({
+      centerCoordinate: [fix.lng, fix.lat],
+      zoomLevel: 16,
+      animationDuration: 500,
+    });
+
     const before = useExploration.getState().exploredHexes.length;
     ingestFix(fix);
     const after = useExploration.getState().exploredHexes.length;
@@ -47,9 +58,15 @@ export default function MapScreen() {
     stopRef.current = await src.start(onFix);
   };
 
+  const runReal = async () => {
+    setSimPos(null); // hand back to the real device location
+    await run(DeviceLocationSource);
+  };
+
   const doReset = () => {
     stopRef.current?.(); // stop any running simulation
     stopRef.current = null;
+    setSimPos(null);
     reset();
   };
 
@@ -63,14 +80,23 @@ export default function MapScreen() {
           if (b?.ne && b?.sw) setBbox([b.sw[0], b.sw[1], b.ne[0], b.ne[1]]);
         }}
       >
-        <Mapbox.Camera defaultSettings={{ centerCoordinate: HOME, zoomLevel: 15 }} />
-        <Mapbox.UserLocation visible />
+        <Mapbox.Camera ref={cameraRef} defaultSettings={{ centerCoordinate: HOME, zoomLevel: 15 }} />
+        <Mapbox.UserLocation visible={!simPos} />
         <FogLayer hexes={exploredHexes} bbox={bbox} />
+
         {POIS.map((p) => (
-          <Mapbox.PointAnnotation key={p.id} id={p.id} coordinate={[p.lng, p.lat]}>
-            <View style={[styles.poi, { backgroundColor: COLORS.orange }]} />
-          </Mapbox.PointAnnotation>
+          <Mapbox.MarkerView key={p.id} id={`poi-${p.id}`} coordinate={[p.lng, p.lat]}>
+            <Image source={CARD} style={styles.card} />
+          </Mapbox.MarkerView>
         ))}
+
+        {simPos && (
+          <Mapbox.MarkerView id="simpos" coordinate={simPos}>
+            <View style={styles.simOuter}>
+              <View style={styles.simInner} />
+            </View>
+          </Mapbox.MarkerView>
+        )}
       </Mapbox.MapView>
 
       {degraded && (
@@ -88,7 +114,7 @@ export default function MapScreen() {
       </Pressable>
 
       <View style={styles.controls}>
-        <Pressable style={styles.btn} onPress={() => run(DeviceLocationSource)}>
+        <Pressable style={styles.btn} onPress={runReal}>
           <Text style={styles.btnT}>Réel</Text>
         </Pressable>
         <Pressable style={styles.btn} onPress={() => run(createSimulatedSource(WALK_ROUTE))}>
@@ -103,7 +129,9 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  poi: { width: 18, height: 24, borderRadius: 4, borderWidth: 2, borderColor: 'white' },
+  card: { width: 30, height: 50, borderRadius: 4 },
+  simOuter: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(30,136,229,0.3)', alignItems: 'center', justifyContent: 'center' },
+  simInner: { width: 14, height: 14, borderRadius: 7, backgroundColor: COLORS.user, borderWidth: 2, borderColor: 'white' },
   banner: { position: 'absolute', top: 54, alignSelf: 'center', backgroundColor: COLORS.navy, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   bannerT: { color: 'white', fontSize: 12 },
   hud: { position: 'absolute', top: 100, alignSelf: 'center', backgroundColor: COLORS.emerald, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
