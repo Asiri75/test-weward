@@ -1,55 +1,45 @@
-# Fog of War — WeWard use case
+# Fog of War — use case WeWard
 
-Une couche d'exploration sur la carte : **la marche révèle le territoire**. Ce qui n'a jamais été parcouru reste dans le brouillard. Persistant, synchronisé entre appareils, et récompense la marche même app fermée.
+Une couche d'exploration sur la carte : **ta marche révèle le territoire**. Ce que tu n'as jamais parcouru reste dans le brouillard. Persistant, synchronisé entre appareils, et ça compte même quand l'app est fermée.
 
-Feature Expo (React Native + TypeScript).
+Feature Expo (React Native + TypeScript), à partir du use case fourni par WeWard.
 
----
+## L'idée
 
-## Idée en une phrase
-
-L'utilisateur marche, sa position alimente une grille d'hexagones **H3**. Chaque hexagone traversé passe de "brouillard" à "révélé". La carte devient un objet personnel qui prend de la valeur avec la marche.
-
----
+Tu marches, ta position tombe dans une grille d'hexagones **H3**. Chaque hexagone traversé passe de "brouillard" à "révélé". La carte devient un objet perso qui prend de la valeur au fil des trajets.
 
 ## Architecture
 
-Le coeur (logique pure) est découplé de l'IO (localisation, stockage, carte, sync) derrière des interfaces. Chacun a une seule responsabilité et se teste seul.
+Le coeur (logique pure) est séparé de l'IO (localisation, stockage, carte, sync) par des interfaces. Chaque module a une seule responsabilité et se teste seul.
 
 ```
-LocationSource → WalkDetector → ExplorationEngine → Store + State → FogRenderer
-                                                        │
-                                                        └→ SyncService (push / pullMerged = union)
+LocationSource → WalkDetector → ExplorationEngine → Store + State → FogLayer
+                                                       │
+                                                       └→ SyncService (push / pullMerged = union)
 ```
 
 | Module | Rôle |
 |---|---|
-| `core/walkDetector` | Décide si un fix compte comme marche (vitesse, précision, anti-teleport). Pur, testé. |
-| `core/explorationEngine` | Fix → hexagones H3 (courant + anneau), diff des nouveaux. Pur, testé. |
+| `core/walkDetector` | Décide si un point compte comme marche (vitesse, précision, anti-teleport). Pur, testé. |
+| `core/explorationEngine` | Point → hexagones H3 (courant + anneau), diff des nouveaux. Pur, testé. |
 | `core/fogGeometry` | Hexagones explorés → géométrie du fog (viewport moins l'union, via turf). |
-| `core/stats` | Couverture du quartier. |
-| `services/locationSource` | `DeviceLocationSource` (expo-location) et `createSimulatedSource` (démo). |
+| `services/locationSource` | `DeviceLocationSource` (réel) et `createSimulatedSource` (démo). |
 | `services/explorationStore` | Persistance MMKV (storage injecté). |
 | `services/syncService` | Interface + mock (union cross-device). Se remplace par un vrai backend sans toucher au reste. |
 | `services/backgroundTask` | Tâche expo-task-manager qui alimente le pipeline app fermée. |
 | `state/useExploration` | Zustand : câble détecteur, moteur, persistance, sync. |
-| `components/FogLayer` | Couche fill Mapbox du fog. |
 
-## Arbitrages (le coeur du sujet)
+## Les arbitrages (le vrai sujet du test)
 
-- **Grille H3** plutôt que traces GPS : data agrégée et minimale (juste des IDs d'hexagones), pas de GPS brut stocké ni envoyé. La résolution (défaut 10, ~65m) est le curseur précision / batterie / vie privée.
-- **Marche seulement** : détection multi-signaux, du moins cher au plus cher. Vitesse (> ~9 km/h ignoré), plausibilité (anti-spoof), qualité du fix. L'activité OS native (CMMotionActivity / ActivityRecognition) est l'évolution prod, via module natif.
-- **Consentement iOS en 2 étapes** : "Pendant l'utilisation" à l'onboarding, puis "Toujours" après la première révélation (moment de valeur). Refus = mode réduit (foreground only), jamais de crash.
-- **Perf** : fog rendu en une couche Mapbox GPU, géométrie recalculée seulement quand l'ensemble exploré ou le viewport change. Compaction H3 pour réduire les polygones.
-- **Sync** : monotone et idempotente (union d'ensembles), file d'attente offline, réconciliation à la reconnexion.
-
----
+- **Grille H3, pas de traces GPS.** On ne stocke et n'envoie que des IDs d'hexagones. Data minimale, pas de GPS brut. La résolution (défaut 10, ~65m) est le curseur précision / batterie / vie privée.
+- **Marche seulement.** Détection multi-signaux, du moins cher au plus cher : vitesse (> ~9 km/h ignoré), plausibilité (anti-spoof), qualité du point. En prod on renforce avec l'activité OS native (module natif).
+- **Consentement iOS en 2 étapes.** "Pendant l'utilisation" à l'onboarding, puis "Toujours" après la première révélation. Refus = mode réduit (foreground only), jamais de crash.
+- **Perf.** Fog rendu en une seule couche Mapbox (GPU). La géométrie ne se recalcule que si l'ensemble exploré change ou si le viewport bouge (mises à jour throttlées).
+- **Sync.** Union d'ensembles, donc monotone et idempotente. File offline, réconciliation à la reconnexion.
 
 ## Stack
 
-Expo (dev build), TypeScript, @rnmapbox/maps, expo-location, expo-task-manager, expo-notifications, h3-js, @turf/turf, react-native-mmkv, zustand, @tanstack/react-query, Sentry, Jest.
-
----
+Expo (dev build), TypeScript, @rnmapbox/maps, expo-location, expo-task-manager, expo-notifications, h3-js, @turf/turf, react-native-mmkv, zustand, @tanstack/react-query, react-native-reanimated, Sentry, Jest.
 
 ## Lancer le projet
 
@@ -57,38 +47,25 @@ Expo (dev build), TypeScript, @rnmapbox/maps, expo-location, expo-task-manager, 
 npm install
 ```
 
-1. Compte Mapbox (gratuit). Récupère ton token public (`pk...`) et crée un token de téléchargement avec le scope `DOWNLOADS:READ` (`sk...`).
-2. Crée un fichier `.env.local` (ignoré par git, aucun secret n'est versionné) :
+1. Compte Mapbox (gratuit) : un token public (`pk...`) et un token de téléchargement avec le scope `DOWNLOADS:READ` (`sk...`).
+2. Un fichier `.env.local` (ignoré par git, aucun secret versionné) :
 
 ```
 EXPO_PUBLIC_MAPBOX_TOKEN=pk_ton_token_public
 MAPBOX_DOWNLOAD_TOKEN=sk_ton_token_de_telechargement
 ```
 
-`app.config.js` injecte le token de téléchargement dans le plugin Mapbox au build.
-
 3. Dev build (Mapbox natif, pas Expo Go) :
 
 ```bash
-npx expo run:ios     # ou npx expo run:android
+npx expo run:android   # ou npx expo run:ios
 ```
 
-### Prérequis toolchain
-
-Stack sur la toute dernière version : **Expo SDK 57, React Native 0.86, React 19.2** (New Architecture bridgeless). `expo-modules-jsi` utilise `weak let` (Swift 6.2), donc **Xcode 26.1+ est requis** pour le build iOS.
-
----
+Stack sur la dernière version (Expo SDK 57, RN 0.86, React 19). Le build iOS demande Xcode 26.1+ (SDK 57 utilise du Swift 6.2).
 
 ## Démo
 
-Trois boutons sur la carte :
-- **Réel** : localisation réelle du device.
-- **Simuler marche** : rejoue un trajet à pied, le fog recule en temps réel.
-- **Simuler voiture** : trajet rapide, le fog **ne bouge pas** (preuve marche-only).
-
-Script vidéo : onboarding + permissions → simuler marche (fog recule) → tuer/rouvrir l'app (persistance) → l'onglet Explorateur (stats + patch synchronisé du device B) → simuler voiture (rien ne se révèle).
-
----
+Trois boutons sur la carte : **Réel** (GPS du device), **Simuler marche** (le fog recule), **Simuler voiture** (le fog ne bouge pas, preuve marche-only). Tape une carte WeWard pour l'animation de collection. Bouton **Réinitialiser** pour repartir de zéro.
 
 ## Tests
 
@@ -96,13 +73,20 @@ Script vidéo : onboarding + permissions → simuler marche (fog recule) → tue
 npm test
 ```
 
-Le périmètre de test est **volontairement ciblé** sur les deux unités qui portent le vrai risque : `walkDetector` (branches + cas limites) et `explorationEngine` (coeur H3). C'est la preuve qu'on fait du test unitaire sans viser une couverture cosmétique. Le reste est validé par le typecheck et la démo.
+Le périmètre est **volontairement ciblé** : les deux unités qui portent le vrai risque, `walkDetector` (branches, cas limites) et `explorationEngine` (coeur H3). On teste ce qui casse, pas pour une couverture cosmétique. Le reste est validé par le typecheck et la démo sur émulateur.
 
----
+## Hors scope (évolutions prod)
 
-## Hors scope (évolutions prod citées)
+Vrai backend + auth (l'interface `SyncService` est déjà prête). Module natif d'activité pour la détection de marche. Vrai système de POI/WeCards. Anti-triche validé côté serveur.
 
-- Vrai backend + auth (interface `SyncService` déjà prête, mock aujourd'hui).
-- Module natif d'activité (marche) pour renforcer la détection.
-- Vrai système de POI/WeCards (quelques pins mockés ici).
-- Validation anti-triche côté serveur.
+## Comment c'est développé (transparence)
+
+Fait avec **Claude Code** (modèle **Opus**). Je pilote, l'IA exécute. La méthode :
+
+1. J'ai donné le cahier des charges et répondu aux questions de cadrage (modèle H3, marche-only, consentement, sync).
+2. J'ai fait scraper vos offres d'emploi (dev front / mobile) pour reprendre votre stack sur ce projet.
+3. On a brainstormé l'architecture et les librairies (skill *brainstorming* de Superpowers), puis découpé en tâches (*writing-plans*).
+4. Développement en TDD sur le coeur, commits réguliers.
+5. Surtout : j'ai fait tourner l'app **en vrai sur émulateur, pas à pas**. Ça a permis d'attraper des bugs runtime que les tests ne voyaient pas (crash h3-js sur le décodage de chaînes, crash de permission, bug de résolution du fog).
+
+La valeur n'est pas "l'IA a codé", mais les décisions d'archi, les arbitrages (batterie, vie privée, perf) et la vérification en conditions réelles.
